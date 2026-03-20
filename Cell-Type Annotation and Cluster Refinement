@@ -1,0 +1,75 @@
+ref<-ref_LungMAP_MouseLung_CellRef.v1.1
+DefaultAssay(ref) <- "RNA"
+# Normalize and set variable features if not already present
+ref <- NormalizeData(ref)
+ref <- FindVariableFeatures(ref)
+
+# Re-run PCA (required for reference.reduction = "pca")
+ref <- ScaleData(ref)
+ref <- RunPCA(ref)
+ref <- RunUMAP(ref, dims = 1:30, reduction = "pca", return.model = TRUE)
+DimPlot(ref, label = TRUE, group.by = "celltype_level1")
+cat("Running label transfer from LungMAP reference…\n")
+
+anchors <- FindTransferAnchors(
+  reference = ref,
+  query = sc_harmony_integrated_without_layers_joined,
+  features = VariableFeatures(sc_harmony_integrated_without_layers_joined),
+  normalization.method = "LogNormalize",
+  reference.reduction  = "pca",
+  dims = 1:30
+)
+
+#saveRDS(anchors, file = "anchors_from_FindTransferAnchors_dim30.RDS")
+
+
+sc_harmony_integrated_without_layers_joined <- MapQuery(
+  anchorset           = anchors,
+  reference           = ref,
+  query               = sc_harmony_integrated_without_layers_joined,
+  refdata             = list(celltype = ref$celltype_level1),
+  reference.reduction = "pca",
+  reduction.model     = "umap"
+)
+
+head(sc_harmony_integrated_without_layers_joined@meta.data)
+DimPlot(sc_harmony_integrated_without_layers_joined, label = TRUE, group.by = "predicted.celltype")
+
+sc_harmony_integrated_without_layers_joined$seurat_clusters <- as.character(sc_harmony_integrated_without_layers_joined$seurat_clusters)
+
+#Find majority cell type per cluster
+majority_anno <- sc_harmony_integrated_without_layers_joined@meta.data %>% 
+  count(seurat_clusters, predicted.celltype, name = "n") %>%       # counts per cluster–cell-type pair
+  group_by(seurat_clusters) %>%                                    # work one cluster at a time
+  mutate(pct = 100 * n / sum(n)) %>%                               # % of cells in that cluster
+  slice_max(order_by = n, n = 1, with_ties = FALSE) %>%            # keep the biggest slice
+  ungroup()
+
+table(sc_harmony_integrated_without_layers_joined@meta.data$seurat_clusters, sc_harmony_integrated_without_layers_joined@meta.data$predicted.celltype)
+
+majority_anno$seurat_clusters <- as.character(majority_anno$seurat_clusters)
+sc_harmony_integrated_without_layers_joined$seurat_clusters   <- as.character(sc_harmony_integrated_without_layers_joined$seurat_clusters)
+
+# Cluster → cell type mapping
+cluster_labels <- setNames(
+  majority_anno$predicted.celltype,
+  majority_anno$seurat_clusters
+)
+
+
+# Map cluster ID → dominant predicted cell type
+cell_annotations <- setNames(
+  cluster_labels[sc_harmony_integrated_without_layers_joined$seurat_clusters],
+  colnames(sc_harmony_integrated_without_layers_joined)  # cell names
+)
+
+# Add to Seurat
+sc_harmony_integrated_without_layers_joined <- AddMetaData(
+  object   = sc_harmony_integrated_without_layers_joined,
+  metadata = cell_annotations,
+  col.name = "cluster_annotation"
+)
+
+
+RunUMAP(sc_harmony_integrated_without_layers_joined, dims = 1:30, reduction = "harmony")
+DimPlot(sc_harmony_integrated_without_layers_joined, group.by = "cluster_annotation", label = TRUE)
