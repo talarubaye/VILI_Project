@@ -56,7 +56,6 @@ cluster_labels <- setNames(
   majority_anno$seurat_clusters
 )
 
-
 # Map cluster ID → dominant predicted cell type
 cell_annotations <- setNames(
   cluster_labels[sc_harmony_integrated_without_layers_joined$seurat_clusters],
@@ -73,3 +72,71 @@ sc_harmony_integrated_without_layers_joined <- AddMetaData(
 
 RunUMAP(sc_harmony_integrated_without_layers_joined, dims = 1:30, reduction = "harmony")
 DimPlot(sc_harmony_integrated_without_layers_joined, group.by = "cluster_annotation", label = TRUE)
+
+
+cluster_labels["0"] <- "Neutrophil"        
+cluster_labels["1"] <- "B" 
+cluster_labels["10"] <- "Monocyte"
+cluster_labels["11"] <- "AF2"
+cluster_labels["12"] <- "CAP1/EPC"
+cluster_labels["13"] <- "Neutrophil"
+cluster_labels["14"] <- "IM"
+cluster_labels["15"] <- "AF1"
+cluster_labels["16"] <- "DC"
+cluster_labels["17"] <- "CAP2"
+cluster_labels["18"] <- "Neutrophil"
+cluster_labels["19"] <- "DC"
+cluster_labels["2"] <- "T"
+cluster_labels["20"] <- "Epithelial_Alveolar"
+cluster_labels["21"] <- "SCMF/VSMC"
+cluster_labels["22"] <- "Epithelial_Alveolar"
+cluster_labels["23"] <- "B"
+cluster_labels["24"] <- "VEC/AEC"
+cluster_labels["25"] <- "Ciliated/Deuterosomal"
+cluster_labels["26"] <- "ILC/NK/T"
+cluster_labels["27"] <- "NK/T/DC/ILC"
+cluster_labels["28"] <- "AM/IM/DC"
+cluster_labels["29"] <- "Pericyte"
+cluster_labels["3"] <- "CAP1/EPC" 
+cluster_labels["30"] <- "Secretory"
+cluster_labels["31"] <- "ILC"
+cluster_labels["32"] <- "LEC"
+cluster_labels["33"] <- "AF1"
+cluster_labels["34"] <- "CAP2"
+cluster_labels["35"] <- "B"
+cluster_labels["36"] <- "B/NK/T"
+cluster_labels["37"] <- "AM"
+cluster_labels["38"] <- "Monocyte/NK/T"
+cluster_labels["39"] <- "B/Monocyte/DC"
+cluster_labels["4"] <- "AF1"
+cluster_labels["40"] <- "Basophil"
+cluster_labels["41"] <- "Pericyte"
+cluster_labels["41"] <- "Mesothelial"
+cluster_labels["5"] <- "Monocyte"
+cluster_labels["6"] <- "ILC/T"
+cluster_labels["7"] <- "NK"
+cluster_labels["8"] <- "AM"
+cluster_labels["9"] <- "NK"
+
+celltype_final <- setNames(
+  cluster_labels[as.character(sc_harmony_integrated_without_layers_joined$seurat_clusters)],
+  colnames(sc_harmony_integrated_without_layers_joined)
+)
+
+sc_harmony_integrated_without_layers_joined <- AddMetaData(
+  sc_harmony_integrated_without_layers_joined,
+  metadata = celltype_final,
+  col.name = "celltype_final"
+)
+
+
+# Check no missing labels
+table(is.na(sc_harmony_integrated_without_layers_joined$celltype_final))
+
+DimPlot(sc_harmony_integrated_without_layers_joined, group.by = "celltype_final", label = TRUE)
+
+# Compare before vs after
+table(vili_merged$predicted.celltype, vili_merged$celltype_final)
+
+# Plot
+DimPlot(vili_merged, group.by = "celltype_final", label = TRUE)
